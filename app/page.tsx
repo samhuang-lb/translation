@@ -54,7 +54,7 @@ export default function Home() {
       <div className="w-full h-full flex flex-col max-w-[1800px]">
         {/* Header - 更紧凑 */}
         <div className="text-center mb-2 md:mb-3 shrink-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 drop-shadow-lg flex items-center justify-center gap-2">
+          <h1 className="text-xl md:text-2xl font-bold text-white mb-1 drop-shadow-lg flex items-center justify-center gap-2">
             <span>📈</span> {getPageText('title')}
           </h1>
           <p className="text-white/70 text-xs md:text-sm">

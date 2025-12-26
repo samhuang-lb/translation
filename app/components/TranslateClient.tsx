@@ -286,6 +286,33 @@ interface TranslateClientProps {
   onLanguageChange?: (lang: string) => void;
 }
 
+// --- 文本分段工具函数 ---
+const splitTextIntoChunks = (text: string, maxLength: number = 500): string[] => {
+  if (text.length <= maxLength) return [text];
+  
+  const chunks: string[] = [];
+  const sentences = text.split(/([。！？\n.!?\r\n]+)/);
+  
+  let currentChunk = '';
+  
+  for (const part of sentences) {
+    if (currentChunk.length + part.length <= maxLength) {
+      currentChunk += part;
+    } else {
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+      }
+      currentChunk = part;
+    }
+  }
+  
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+  
+  return chunks.filter(s => s.length > 0);
+};
+
 export default function TranslateClient({ onLanguageChange }: TranslateClientProps = {}) {
   const [toLang, setToLang] = useState('zh-CN');
   
@@ -299,16 +326,45 @@ export default function TranslateClient({ onLanguageChange }: TranslateClientPro
   const fetchTranslation = useCallback(async (text: string, targetLang: string) => {
     if (!text) return "";
     
-    const endpoint = text.length > 500 ? '/api/translate/batch' : '/api/translate';
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text, from: 'auto', to: targetLang }),
-    });
-    if (!response.ok) throw new Error('API Error');
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error);
-    return result.translated;
+    // 如果文本较短，直接翻译
+    if (text.length <= 500) {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text, from: 'auto', to: targetLang }),
+      });
+      if (!response.ok) throw new Error('API Error');
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error);
+      return result.translated;
+    }
+    
+    // 长文本：分段翻译
+    const chunks = splitTextIntoChunks(text, 500);
+    const translations: string[] = [];
+    
+    // 串行翻译每个片段（避免并发请求过多）
+    for (const chunk of chunks) {
+      try {
+        const response = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: chunk, from: 'auto', to: targetLang }),
+        });
+        
+        if (!response.ok) throw new Error('API Error');
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+        
+        translations.push(result.translated);
+      } catch (error) {
+        console.error('Translation chunk error:', error);
+        translations.push(chunk); // 失败时保留原文
+      }
+    }
+    
+    return translations.join('');
   }, []);
 
 
