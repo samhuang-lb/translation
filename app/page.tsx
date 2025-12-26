@@ -1,6 +1,6 @@
 'use client';
 
-import TranslateClient from './components/TranslateClient';
+import TranslateClient from './components/translate-client';
 import { useState, useEffect } from 'react';
 
 // 页面标题和描述的多语言文本
